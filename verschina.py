@@ -1,10 +1,63 @@
 import pandas as pd
 import networkx as nx
 from tabulate import tabulate
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
-# Загрузка данных
-nodes_df = pd.read_csv('nodes_202510210940.csv')
-links_df = pd.read_csv('links.csv')
+# Параметры подключения к БД
+DB_CONFIG = {
+    'host': '10.239.10.221',
+    'port': '31432',
+    'database': 'fgdp',
+    'user': 'fgdp_qa',  # замените на ваше имя пользователя
+    'password': 'lKFp9CBmFj|aYXjiWYtrTfZgy9%lBgJ5M*ql7Vi6sP6dBwz8l4pu}qivlvHlj7#K'  # замените на ваш пароль
+}
+
+
+def get_db_connection():
+    """Создание подключения к БД"""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        return conn
+    except Exception as e:
+        print(f"Ошибка подключения к БД: {e}")
+        return None
+
+
+def load_data_from_db():
+    """Загрузка данных из базы данных"""
+    conn = get_db_connection()
+    if conn is None:
+        return None, None
+
+    try:
+        # Загрузка узлов
+        nodes_query = "SELECT id, name, type FROM planning_service.nodes;"  # замените на вашу таблицу узлов
+        nodes_df = pd.read_sql_query(nodes_query, conn)
+
+        # Загрузка связей
+        links_query = "SELECT id, start_node, finish_node, type FROM planning_service.links;"  # замените на вашу таблицу связей
+        links_df = pd.read_sql_query(links_query, conn)
+
+        return nodes_df, links_df
+
+    except Exception as e:
+        print(f"Ошибка загрузки данных из БД: {e}")
+        return None, None
+    finally:
+        conn.close()
+
+
+# Загрузка данных из БД
+print("Загрузка данных из базы данных...")
+nodes_df, links_df = load_data_from_db()
+
+if nodes_df is None or links_df is None:
+    print("Не удалось загрузить данные из БД. Проверьте подключение и параметры.")
+    exit()
+
+print(f"Загружено узлов: {len(nodes_df)}")
+print(f"Загружено связей: {len(links_df)}")
 
 # Создаем граф
 G = nx.DiGraph()
@@ -45,7 +98,7 @@ for node in G.nodes():
     vertices_data.append({
         'Вершина': formatted_name,
         'Тип': node_type,
-        'ID': node[:12] + '...',
+        'ID': str(node)[:12] + '...',
         'Входящие': in_degree,
         'Исходящие': out_degree,
         'Всего связей': total_degree
@@ -79,8 +132,8 @@ for node in G.nodes():
             'От вершины': formatted_name,
             'К вершине': target_name,
             'Тип связи': link_type,
-            'ID начала': node[:8] + '...',
-            'ID конца': target[:8] + '...'
+            'ID начала': str(node)[:8] + '...',
+            'ID конца': str(target)[:8] + '...'
         })
 
     # Входящие связи
@@ -93,8 +146,8 @@ for node in G.nodes():
             'От вершины': source_name,
             'К вершине': formatted_name,
             'Тип связи': link_type,
-            'ID начала': source[:8] + '...',
-            'ID конца': node[:8] + '...'
+            'ID начала': str(source)[:8] + '...',
+            'ID конца': str(node)[:8] + '...'
         })
 
 # Создаем DataFrame для связей
@@ -148,7 +201,7 @@ print("ПРИМЕР ДЕТАЛЬНОЙ ТАБЛИЦЫ ДЛЯ ВЕРШИН СВЯ
 print("=" * 120)
 
 # Берем первые 5 вершин для примера детального отображения
-sample_nodes = list(G.nodes())
+sample_nodes = list(G.nodes())[:5]
 detailed_data = []
 
 for node in sample_nodes:
