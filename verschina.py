@@ -9,8 +9,8 @@ DB_CONFIG = {
     'host': '10.239.10.221',
     'port': '31432',
     'database': 'fgdp',
-    'user': 'fgdp_qa',  # замените на ваше имя пользователя
-    'password': 'lKFp9CBmFj|aYXjiWYtrTfZgy9%lBgJ5M*ql7Vi6sP6dBwz8l4pu}qivlvHlj7#K'  # замените на ваш пароль
+    'user': 'fgdp_qa',
+    'password': 'lKFp9CBmFj|aYXjiWYtrTfZgy9%lBgJ5M*ql7Vi6sP6dBwz8l4pu}qivlvHlj7#K'
 }
 
 
@@ -39,6 +39,11 @@ def load_data_from_db():
         links_query = "SELECT id, start_node, finish_node, type FROM planning_service.links;"  # замените на вашу таблицу связей
         links_df = pd.read_sql_query(links_query, conn)
 
+        # Загрузка времени между узлами
+        ldtl_query = "SELECT * FROM planning_service.line_driving_times_links"
+        ldtl_df = pd.read_sql_query(ldtl_query, conn)
+
+
         return nodes_df, links_df
 
     except Exception as e:
@@ -58,6 +63,7 @@ if nodes_df is None or links_df is None:
 
 print(f"Загружено узлов: {len(nodes_df)}")
 print(f"Загружено связей: {len(links_df)}")
+print(f"Загружено времени: {len(links_df)}")
 
 # Создаем граф
 G = nx.DiGraph()
@@ -201,7 +207,7 @@ print("ПРИМЕР ДЕТАЛЬНОЙ ТАБЛИЦЫ ДЛЯ ВЕРШИН СВЯ
 print("=" * 120)
 
 # Берем первые 5 вершин для примера детального отображения
-sample_nodes = list(G.nodes())[:5]
+sample_nodes = list(G.nodes())
 detailed_data = []
 
 for node in sample_nodes:
